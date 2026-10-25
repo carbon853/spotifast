@@ -156,15 +156,51 @@ native-packages build \
 Secret configuration applies to future builds. Existing published DMGs retain
 their original signatures; this setup does not replace release assets.
 
+## Windows signing
+
+Tag releases sign `spotifast.exe`, the setup program and the MSI with Azure Artifact Signing, as
+**PlentyLabs UG (haftungsbeschränkt) & Co. KG**: SHA-256 Authenticode with
+Microsoft's RFC 3161 timestamp, and a check that every signed file is `Valid`
+before it is attested and uploaded. The account, `plentylabs` in West Europe,
+is shared by Carmine's Windows apps and managed in `crmne/terraform`
+(`azure/signing.tf`, its README's "Code signing").
+
+Azure Artifact Signing doesn't run on Arm runners, so the arm64 binary is
+built, checked and started on `windows-11-arm` as before, then handed to the
+release workflow's `windows` job on x64, which signs and packages both
+architectures and replaces the binary's artifact with the packages.
+
+No secret is involved. The `windows` jobs run in this repository's
+`windows-signing` environment, which deploys only from `v*` tags, and sign in
+through GitHub's OIDC token as the Entra app `GitHub spotifast Windows signing`.
+That app trusts only `repo:crmne/spotifast:environment:windows-signing` and holds
+the "Artifact Signing Certificate Profile Signer" role on the account. The
+environment's variables, none of them secret, are `AZURE_CLIENT_ID`,
+`AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_SIGNING_ENDPOINT`,
+`AZURE_SIGNING_ACCOUNT` and `AZURE_SIGNING_PROFILE`.
+
+Signing starts once `AZURE_SIGNING_PROFILE` is set; until then releases build
+unsigned, as before. The certificate profile waits for PlentyLabs' Public Trust
+identity validation, after which:
+
+```sh
+echo plentylabs | gh variable set AZURE_SIGNING_PROFILE -R crmne/spotifast -e windows-signing
+```
+
+A signature doesn't silence SmartScreen at once: reputation builds as people
+download releases signed by the same publisher, so keep signing every release
+with this identity.
+
 ## Windows Installer package
 
-Each Windows release job builds the Inno Setup program
+The release workflow's `windows` job, on x64 for both architectures, signs the
+binary each Windows build job checked and builds the Inno Setup program
 (`packaging/windows/spotifast.iss`) and the Windows Installer package from the
 same binary. The package comes from `packaging/windows/spotifast.wxs` (WiX
 Toolset 5): native-packages selects `windows-amd64` or `windows-arm64` with
 `--defer-recipes` and runs `packaging/windows/build-msi.py`. That script
 compiles the package's custom actions (`running-copy.c`,
-`update-leftovers.c`) with the job's MSVC tools, refuses an executable whose
+`update-leftovers.c`) with the job's MSVC tools (cross-compiled for arm64), refuses an executable whose
 version resource does not carry the release version, and runs WiX with
 `-pdbtype none`, so the package is the only output.
 
