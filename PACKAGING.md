@@ -161,7 +161,7 @@ their original signatures; this setup does not replace release assets.
 Tag releases sign `spotifast.exe`, the setup program and the MSI with Azure Artifact Signing, as
 **PlentyLabs UG (haftungsbeschränkt) & Co. KG**: SHA-256 Authenticode with
 Microsoft's RFC 3161 timestamp, and a check that every signed file is `Valid`
-before it is attested and uploaded. The account, `plentylabs` in West Europe,
+before it is uploaded. The account, `plentylabs` in West Europe,
 is shared by Carmine's Windows apps and managed in `crmne/terraform`
 (`azure/signing.tf`, its README's "Code signing").
 
