@@ -85,6 +85,41 @@ def clean(repo):
     return git(repo.root, 'rev-parse', 'HEAD').decode().strip()
 
 
+def installer_only_since(repo, built, current):
+    """Keep an artifact's original provenance across reviewed installer repairs."""
+    import ast
+
+    if built == current:
+        return True
+    if not all(re.fullmatch(r'[0-9a-f]{40}', value) for value in (built, current)):
+        return False
+    try:
+        git(repo.root, 'merge-base', '--is-ancestor', built, current)
+        changed = git(repo.root, 'diff', '--name-only', '-z', built, current, '--').split(b'\0')
+    except Error:
+        return False
+    allowed = {b'.spotifast-mod/local.py', b'.spotifast-mod/test_local.py', b'.spotifast-mod/README.md'}
+    if any(path not in allowed for path in changed if path):
+        return False
+    # local.py also contains the build sandbox and compiler controls. Require
+    # those definitions to remain identical, not merely the filename allowlist.
+    def build_policy(revision):
+        tree = ast.parse(git(repo.root, 'show', revision + ':.spotifast-mod/local.py'))
+        tree.body = [node for node in tree.body if not (
+            isinstance(node, ast.FunctionDef) and node.name in
+            {'installer_only_since', 'transaction', 'package_install'})]
+        for node in tree.body:
+            if isinstance(node, ast.ClassDef) and node.name == 'Pipeline':
+                node.body = [method for method in node.body if not (
+                    isinstance(method, ast.FunctionDef) and method.name in
+                    {'artifact', 'install', 'replace', 'recover_previous', 'rollback'})]
+        return ast.dump(tree, include_attributes=False)
+    try:
+        return build_policy(built) == build_policy(current)
+    except (Error, SyntaxError):
+        return False
+
+
 def snapshot_index(repo, source):
     """Minimal independent Git metadata for repository checks, without host refs/config."""
     run(['git', '-c', 'init.templateDir=', 'init', '-q', source])
@@ -191,8 +226,9 @@ def installed():
 def transaction(package):
     output = run(['apt-get', '-s', '--no-remove', '--no-download', '--allow-downgrades',
                   '--reinstall', 'install', package]).decode()
-    changed = [line for line in output.splitlines() if line.startswith(('Inst ', 'Remv '))]
-    if not changed or any(not line.startswith('Inst spotifast ') for line in changed):
+    changed = [line for line in output.splitlines() if line.startswith(('Inst ', 'Remv ', 'Conf '))]
+    if not any(line.startswith('Inst spotifast ') for line in changed) or any(
+            not line.startswith(('Inst spotifast ', 'Conf spotifast ')) for line in changed):
         raise Error('dependency transaction must replace only spotifast:\n' + output)
     return output
 
@@ -557,8 +593,10 @@ class Pipeline:
         if not re.fullmatch(r'[0-9a-f]{12}-[0-9]{8}T[0-9]{6}Z', build_id):
             raise Error('invalid build id')
         manifest = json.loads((self.store / 'builds' / build_id / 'manifest.json').read_text())
-        if manifest['state'] != 'verified' or manifest['commit'] != clean(self.repo):
+        if manifest['state'] != 'verified' or not installer_only_since(self.repo, manifest['commit'], clean(self.repo)):
             raise Error('artifact is unverified or belongs to another source commit')
+        if manifest.get('toolchain') != RUST or manifest.get('features') != ['default', 'milkdrop']:
+            raise Error('artifact toolchain or production features mismatch')
         if manifest['upstream'] != self.repo.pin() or manifest['patches'] != {
                 n: sha(self.repo.meta / 'patches' / n) for n in self.repo.series()}:
             raise Error('artifact source metadata mismatch')
@@ -602,21 +640,36 @@ class Pipeline:
             record['state'] = 'recovering'
             save(self.journal, record)
             try:
-                if running():
-                    quit_app()
-                package_install(previous)
-                verify_installed(old_info)
-                if was_running:
-                    launch_app()
-                record['state'] = 'recovered'
-                save(self.journal, record)
+                self.recover_previous(record)
             except BaseException as recovery:
                 raise Error(f'installation failed: {failure}; recovery needs attention: {recovery}; journal: {self.journal}') from recovery
             raise Error(f'installation failed and previous package restored: {failure}') from failure
         return record
 
+    def recover_previous(self, record):
+        previous = Path(record['previous'])
+        if inspect_deb(previous) != record['previous_info']:
+            raise Error('rollback artifact changed')
+        try:
+            verify_installed(record['previous_info'])
+        except Error:
+            if running():
+                quit_app()
+            transaction(previous)
+            package_install(previous)
+            verify_installed(record['previous_info'])
+        # A package manager can fail before changing any files. In that case
+        # restore the original running state without another package operation.
+        if record['was_running'] and not running():
+            launch_app()
+        record['state'] = 'recovered'
+        save(self.journal, record)
+        return record
+
     def rollback(self):
         record = json.loads(self.journal.read_text())
+        if record['state'] in ('installing', 'recovering'):
+            return self.recover_previous(record)
         previous = Path(record['previous'])
         old = inspect_deb(previous)
         if old != record['previous_info']:
@@ -662,8 +715,10 @@ def launch_app():
 
 
 def package_install(package):
-    run(['sudo', '-n', 'apt-get', '-y', '--no-download', '--no-remove', '--allow-downgrades',
-         '--reinstall', 'install', package], capture=False)
+    # APT simulation validates dependencies first. Use dpkg for the exact local
+    # file: APT 3.0 --no-download can leave local archive paths unresolved.
+    # dpkg cannot acquire packages or choose a replacement from a repository.
+    run(['sudo', '-n', 'dpkg', '--install', Path(package).resolve(strict=True)], capture=False)
 
 
 def verify_installed(info):

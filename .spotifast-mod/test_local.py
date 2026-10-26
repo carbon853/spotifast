@@ -68,11 +68,37 @@ class PackageTests(unittest.TestCase):
                 path.unlink(); path.write_bytes(original); path.chmod(0o755)
 
     def test_dependency_changes_are_rejected(self):
-        for output in (b'Remv unrelated [1]\n', b'Inst spotifast (1 local)\nInst dep (2 local)\n', b''):
+        for output in (b'Remv unrelated [1]\n', b'Inst spotifast (1 local)\nInst dep (2 local)\n',
+                       b'Inst spotifast (1 local)\nConf dep (2 local)\n', b''):
             with patch.object(p, 'run', return_value=output), self.assertRaises(p.Error):
                 p.transaction(self.deb)
         with patch.object(p, 'run', return_value=b'Inst spotifast [0] (1 local)\n'):
             p.transaction(self.deb)
+
+    def test_local_package_upgrade_and_rollback_in_private_root(self):
+        self.package()
+        old = self.root / 'old.deb'
+        shutil.copyfile(self.deb, old)
+        control = self.payload / 'DEBIAN/control'
+        control.write_text(control.read_text().replace('Version: 0.13.3', 'Version: 0.14.2'))
+        (self.payload / 'usr/bin/spotifast').write_bytes(b'new inert fixture\n')
+        self.package()
+        private = self.root / 'private-root'
+        sentinel = private / 'home/user/config/spotifast/fixture'
+        sentinel.parent.mkdir(parents=True)
+        sentinel.write_bytes(b'preserve synthetic user data')
+        original_run = p.run
+        def isolated_install(args, **kwargs):
+            self.assertEqual(args[:4], ['sudo', '-n', 'dpkg', '--install'])
+            self.assertTrue(args[4].is_absolute())
+            return original_run(['dpkg', '--force-not-root', '--root=' + str(private),
+                                 '--install', args[4]], env={**p.ENV, 'PATH': '/usr/sbin:/usr/bin:/sbin:/bin'})
+        for package, expected in ((old, b'fixture, never execute\n'),
+                                  (self.deb, b'new inert fixture\n'), (old, b'fixture, never execute\n')):
+            with patch.object(p, 'run', side_effect=isolated_install):
+                p.package_install(package)
+            self.assertEqual((private / 'usr/bin/spotifast').read_bytes(), expected)
+            self.assertEqual(sentinel.read_bytes(), b'preserve synthetic user data')
 
     def test_sandbox_has_no_host_home_session_or_network(self):
         args = p.sandbox(self.root, ['/usr/bin/true'])
@@ -159,11 +185,52 @@ class DeploymentTests(unittest.TestCase):
 
     def test_failed_install_and_failed_startup_restore_old_package(self):
         for failure in ('install', 'startup'):
-            with self.subTest(failure=failure), patch.object(p, 'transaction'), patch.object(p, 'run'), patch.object(p, 'running', side_effect=[True, False]), patch.object(p, 'quit_app'), patch.object(p, 'verify_installed'), patch.object(p, 'smoke'), patch.object(p, 'package_install', side_effect=[p.Error('failed'), None] if failure == 'install' else None) as install, patch.object(p, 'launch_app', side_effect=[p.Error('failed'), None] if failure == 'startup' else None):
+            verification = [p.Error('old package differs'), None] if failure == 'install' else [None, p.Error('old package differs'), None]
+            with self.subTest(failure=failure), patch.object(p, 'transaction'), patch.object(p, 'run'), patch.object(p, 'running', side_effect=[True, False, False]), patch.object(p, 'quit_app'), patch.object(p, 'inspect_deb', return_value=self.old), patch.object(p, 'verify_installed', side_effect=verification), patch.object(p, 'smoke'), patch.object(p, 'package_install', side_effect=[p.Error('failed'), None] if failure == 'install' else None) as install, patch.object(p, 'launch_app', side_effect=[p.Error('failed'), None] if failure == 'startup' else None):
                 with self.assertRaisesRegex(p.Error, 'previous package restored'):
                     self.pipeline.replace('new.deb', self.new, 'old.deb', self.old, 'commit')
-                self.assertEqual([c.args[0] for c in install.call_args_list], ['new.deb', 'old.deb'])
+                self.assertEqual([str(c.args[0]) for c in install.call_args_list], ['new.deb', 'old.deb'])
                 self.assertEqual(json.loads(self.pipeline.journal.read_text())['state'], 'recovered')
+
+    def test_failure_before_replacement_reopens_intact_old_package(self):
+        with patch.object(p, 'transaction'), patch.object(p, 'run'), patch.object(p, 'running', side_effect=[True, False]), patch.object(p, 'quit_app'), patch.object(p, 'inspect_deb', return_value=self.old), patch.object(p, 'verify_installed'), patch.object(p, 'package_install', side_effect=p.Error('failed before replacement')) as install, patch.object(p, 'launch_app') as launch:
+            with self.assertRaisesRegex(p.Error, 'previous package restored'):
+                self.pipeline.replace('new.deb', self.new, 'old.deb', self.old, 'commit')
+        install.assert_called_once_with('new.deb')
+        launch.assert_called_once()
+        self.assertEqual(json.loads(self.pipeline.journal.read_text())['state'], 'recovered')
+
+    def test_interrupted_recovery_reuses_intact_previous_package(self):
+        p.save(self.pipeline.journal, {'state': 'recovering', 'previous': 'old.deb',
+                                      'previous_info': self.old, 'was_running': True})
+        with patch.object(p, 'inspect_deb', return_value=self.old), patch.object(p, 'verify_installed'), patch.object(p, 'running', return_value=True), patch.object(p, 'package_install') as install, patch.object(p, 'launch_app') as launch:
+            self.assertEqual(self.pipeline.rollback()['state'], 'recovered')
+        install.assert_not_called()
+        launch.assert_not_called()
+
+    def test_artifact_reuse_requires_installer_only_descendant(self):
+        p.run(['git', '-c', 'init.templateDir=', 'init', '-q', self.root])
+        repo = type('Repo', (), {'root': self.root})()
+        source = self.root / 'source.rs'
+        source.write_text('application\n')
+        script = self.root / '.spotifast-mod/local.py'
+        script.parent.mkdir()
+        script.write_text('def package_install(package):\n    return "old"\n')
+        def commit():
+            p.git(self.root, 'add', '--', 'source.rs', '.spotifast-mod/local.py')
+            p.git(self.root, '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '-qm', 'fixture')
+            return p.git(self.root, 'rev-parse', 'HEAD').decode().strip()
+        built = commit()
+        script.write_text('def package_install(package):\n    return "fixed"\n')
+        repaired = commit()
+        self.assertTrue(p.installer_only_since(repo, built, repaired))
+        script.write_text(script.read_text() + '\ndef sandbox():\n    return "changed build control"\n')
+        changed_policy = commit()
+        self.assertFalse(p.installer_only_since(repo, built, changed_policy))
+        source.write_text('different application\n')
+        changed = commit()
+        self.assertFalse(p.installer_only_since(repo, built, changed))
+        self.assertFalse(p.installer_only_since(repo, changed, repaired))
 
     def test_missing_rollback_prevents_replacement(self):
         with patch.object(self.pipeline, 'artifact', return_value=('new', self.new, {'commit': 'x'})), patch.object(self.pipeline, 'rollback_package', side_effect=p.Error('missing rollback')), patch.object(self.pipeline, 'replace') as replace:
@@ -189,9 +256,14 @@ class DeploymentTests(unittest.TestCase):
         package.write_bytes(b'never executed')
         self.pipeline.repo = type('Repo', (), {'pin': lambda self: 'pin', 'series': lambda self: []})()
         actual = {'version': '0.14.2', 'package_sha256': 'expected', 'files': {'usr/bin/spotifast': 'hash'}}
-        valid = dict(actual, state='verified', commit='commit', upstream='pin', patches={}, package=str(package))
+        valid = dict(actual, state='verified', commit='commit', upstream='pin', patches={}, package=str(package),
+                     toolchain=p.RUST, features=['default', 'milkdrop'])
+        (folder / 'manifest.json').write_text(json.dumps(valid))
+        with patch.object(p, 'clean', return_value='commit'), patch.object(p, 'inspect_deb', return_value=actual):
+            self.assertEqual(self.pipeline.artifact(build_id)[2]['commit'], 'commit')
         for mutation in ({'state': 'failed'}, {'commit': 'other'}, {'upstream': 'other'},
-                         {'patches': {'unexpected': 'hash'}}, {'package_sha256': 'tampered'}, {'files': {}}):
+                         {'patches': {'unexpected': 'hash'}}, {'package_sha256': 'tampered'}, {'files': {}},
+                         {'toolchain': 'other'}, {'features': ['demo']}):
             with self.subTest(mutation=mutation):
                 (folder / 'manifest.json').write_text(json.dumps(dict(valid, **mutation)))
                 with patch.object(p, 'clean', return_value='commit'), patch.object(p, 'inspect_deb', return_value=actual), self.assertRaises(p.Error):

@@ -188,6 +188,22 @@ is retained for diagnosis and should be removed after recording the failure.
 The current rollback package must remain in `local/packages/`. Do not move this
 storage to `/tmp` or removable storage.
 
+Installation uses APT's dependency simulation, then `dpkg --install` with the
+validated absolute archive path. This avoids APT 3.0's local archive failure with
+`--no-download`; dpkg cannot download dependencies. Pending configuration of any
+other package is also refused. Recovery first checks whether the previous package
+is already intact, so a failure before replacement only needs to restore its
+original running state. `rollback` handles interrupted recovery the same way.
+
+A verified artifact can be reused after committed installer-only repairs to
+`local.py`, `test_local.py`, and this guide. Its build commit must be an ancestor
+of the clean checkout; every other tracked path, the upstream pin, patch hashes,
+toolchain and production features must still match. The build/sandbox definitions
+in `local.py` must also be unchanged (compared as Python syntax trees without
+executing the historical code). The manifest and package
+retain their original build commit. Application or build-input changes require
+a new build.
+
 Installation preserves the package name, `/usr/bin/spotifast`, launcher/icon,
 license, readme and Omarchy assets. It does not purge the package or write to user
 configuration, state, caches or credential stores. Relaunch preserves HOME and
