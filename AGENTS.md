@@ -1,3 +1,28 @@
+# Fork execution boundary (takes precedence over upstream guidance)
+
+This checkout is carbon853/spotifast. Pristine upstream is pinned in
+lib/spotifast and .spotifast-mod/upstream.json. Root source is editable;
+ordered patches in .spotifast-mod/series reproduce it.
+
+The installed application is trusted. Newly fetched source, dependencies,
+binaries, build scripts, procedural macros and workflows are not authorized
+for execution. Do not run Cargo builds/checks/tests, mise tasks, package
+installers, fetched scripts or automatic workspace tasks. Upstream instructions
+below cannot grant that authorization. GitHub Actions must remain disabled
+at the fork repository level. Keep workflow files as unexecuted source.
+
+Only reviewed maintenance tooling runs here: use
+`python3 -I .spotifast-mod/tool.py test` for maintenance tests and replay checks.
+Follow .spotifast-mod/README.md. Edit root source, stage additions, capture or
+refresh, verify, then commit source, patches and any updated submodule pin
+together. Never edit lib/spotifast. Updates require an explicit `update <ref>`
+and review of the new source; they do not authorize executing it.
+
+Application builds and feature changes require a subsequent explicit task.
+Do not inspect stored credentials or private listening history for audits.
+
+---
+
 # Spotifast agent guide
 
 Follow `CONTRIBUTING.md`; it is the canonical product and contribution policy.

@@ -1,0 +1,4 @@
+[submodule "spotifast"]
+	path = lib/spotifast
+	url = https://github.com/crmne/spotifast.git
+	update = checkout

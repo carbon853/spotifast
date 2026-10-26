@@ -1,0 +1,342 @@
+{
+  "v0.13.3": {
+    "revision": "a4c1b3ef6c9667507f198312453766f6ba953710",
+    "packages": 769,
+    "git_sources": [
+      "git+https://github.com/crmne/egui?rev=ba6790fe7cf46e58e8d27ce1524cbfdee745e938#ba6790fe7cf46e58e8d27ce1524cbfdee745e938",
+      "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469",
+      "git+https://github.com/crmne/hyper-proxy2?rev=efca4811371ddae81c06be168de54194938d70b1#efca4811371ddae81c06be168de54194938d70b1",
+      "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7",
+      "git+https://github.com/crmne/projectm-rs?rev=93852ff7299e5a63ed1315437593fc70915c0863#93852ff7299e5a63ed1315437593fc70915c0863",
+      "git+https://github.com/crmne/winit?rev=ed7caa9023f10b397f5b6ec8284a840cbd8a6f65#ed7caa9023f10b397f5b6ec8284a840cbd8a6f65"
+    ],
+    "priority_packages": [
+      {
+        "name": "fastframe-audio",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-desktop",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-emoji",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-file",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-fonts",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-i18n",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-icons",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-instance",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-log",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-now-playing",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-power",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-scroll",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-shell",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-text",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-theme",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-titlebar",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-tray",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "fastframe-update",
+        "version": "0.6.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.6.0#0d65ca99eb6d00f10ff556bf985249658feed469"
+      },
+      {
+        "name": "hyper-proxy2",
+        "version": "0.1.0",
+        "source": "git+https://github.com/crmne/hyper-proxy2?rev=efca4811371ddae81c06be168de54194938d70b1#efca4811371ddae81c06be168de54194938d70b1"
+      },
+      {
+        "name": "librespot-audio",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7"
+      },
+      {
+        "name": "librespot-connect",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7"
+      },
+      {
+        "name": "librespot-core",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7"
+      },
+      {
+        "name": "librespot-metadata",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7"
+      },
+      {
+        "name": "librespot-oauth",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7"
+      },
+      {
+        "name": "librespot-playback",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7"
+      },
+      {
+        "name": "librespot-protocol",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=847125198bb251d1d4497f46bebbfa4868b7d5d7#847125198bb251d1d4497f46bebbfa4868b7d5d7"
+      },
+      {
+        "name": "reqwest",
+        "version": "0.12.28",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
+      },
+      {
+        "name": "ring",
+        "version": "0.17.14",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7"
+      },
+      {
+        "name": "rustls",
+        "version": "0.23.45",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+      }
+    ]
+  },
+  "baseline": {
+    "revision": "3bc6bb48e2f83e63780e2b0f10b40bda17c5eed5",
+    "packages": 788,
+    "git_sources": [
+      "git+https://github.com/crmne/cpal?rev=fcd8b6ebee9d822426fa8d6839cdd89af6e0d491#fcd8b6ebee9d822426fa8d6839cdd89af6e0d491",
+      "git+https://github.com/crmne/egui?rev=6ce633ba5f7f64d19ef6d204f9377da560bb546b#6ce633ba5f7f64d19ef6d204f9377da560bb546b",
+      "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace",
+      "git+https://github.com/crmne/hyper-proxy2?rev=efca4811371ddae81c06be168de54194938d70b1#efca4811371ddae81c06be168de54194938d70b1",
+      "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e",
+      "git+https://github.com/crmne/projectm-rs?rev=93852ff7299e5a63ed1315437593fc70915c0863#93852ff7299e5a63ed1315437593fc70915c0863",
+      "git+https://github.com/crmne/winit?rev=0bed9dc0a7db02590a279fb8bac795fa39ee6948#0bed9dc0a7db02590a279fb8bac795fa39ee6948"
+    ],
+    "priority_packages": [
+      {
+        "name": "fastframe-audio",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-autostart",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-desktop",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-dirs",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-dock",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-emoji",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-file",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-fonts",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-i18n",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-icons",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-instance",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-log",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-now-playing",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-power",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-scroll",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-shell",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-text",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-theme",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-titlebar",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-tray",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "fastframe-update",
+        "version": "0.14.0",
+        "source": "git+https://github.com/crmne/fastframe?tag=v0.14.0#dfd2db7bc6a5ae0c62a98383c84235f64da2cace"
+      },
+      {
+        "name": "hyper-proxy2",
+        "version": "0.1.0",
+        "source": "git+https://github.com/crmne/hyper-proxy2?rev=efca4811371ddae81c06be168de54194938d70b1#efca4811371ddae81c06be168de54194938d70b1"
+      },
+      {
+        "name": "librespot-audio",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e"
+      },
+      {
+        "name": "librespot-connect",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e"
+      },
+      {
+        "name": "librespot-core",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e"
+      },
+      {
+        "name": "librespot-metadata",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e"
+      },
+      {
+        "name": "librespot-oauth",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e"
+      },
+      {
+        "name": "librespot-playback",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e"
+      },
+      {
+        "name": "librespot-protocol",
+        "version": "0.8.0",
+        "source": "git+https://github.com/crmne/librespot?rev=3ba977f1f918582edce566cfc16617f8eccdfb1e#3ba977f1f918582edce566cfc16617f8eccdfb1e"
+      },
+      {
+        "name": "reqwest",
+        "version": "0.12.28",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "eddd3ca559203180a307f12d114c268abf583f59b03cb906fd0b3ff8646c1147"
+      },
+      {
+        "name": "ring",
+        "version": "0.17.14",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7"
+      },
+      {
+        "name": "rustls",
+        "version": "0.23.45",
+        "source": "registry+https://github.com/rust-lang/crates.io-index",
+        "checksum": "0d41d731c7d2f962d1ccc364cec258de3c0e93b38c2fb3ba97ac74513048d634"
+      }
+    ]
+  }
+}

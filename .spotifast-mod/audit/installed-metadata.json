@@ -1,0 +1,11 @@
+{
+  "observed_at_utc": "2026-10-26T04:44:23.265473+00:00",
+  "package": "spotifast\t0.13.3\tamd64\tinstall ok installed",
+  "executable": "/usr/bin/spotifast",
+  "sha256": "bc75f305284296448831ba3805eea57163b30a75cb56f484401f0eb4cbe79949",
+  "size_bytes": 42585264,
+  "git_package": "1:2.48.1-0ubuntu1.1",
+  "binary_source_equivalence": "Not established; version labels and package metadata are not reproducible-build evidence.",
+  "private_data_accessed": false,
+  "application_or_dependency_code_executed": false
+}
