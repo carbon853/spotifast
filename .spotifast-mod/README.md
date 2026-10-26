@@ -165,7 +165,11 @@ own terminal after `sudo -v`; it uses `sudo -n` and will stop before quitting th
 app if privilege is unavailable.
 
 Builds use a read-only source snapshot and separate writable Cargo cache and
-target directory. The acquisition sandbox has network but no host home or bus.
+target directory. Baseline and candidate demo builds own separate targets, seeded
+by copying the completed dependency cache without hard links. A second disk check
+reserves the baseline copy plus 4 GiB of headroom. Completed test executables are
+removed before this step; baseline outputs are removed after their captures.
+The acquisition sandbox has network but no host home or bus.
 The compile/test sandbox has no external network. Both use an allowlisted
 environment and minimal filesystem mounts. No desktop credential store is
 available. Ruby gems are acquired against Gemfile.lock checksums, then installed and the

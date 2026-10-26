@@ -91,6 +91,13 @@ class PackageTests(unittest.TestCase):
             self.assertEqual(env[key], value)
         self.assertTrue(all(name.startswith('usr/') for name in p.PAYLOAD))
 
+    def test_smoke_refuses_generated_symlink_before_mounting(self):
+        executable = self.root / 'generated'
+        executable.symlink_to('/usr/bin/true')
+        with patch.object(p, 'run') as run, self.assertRaisesRegex(p.Error, 'without symlink parents'):
+            p.smoke(self.root, executable, 'fixture')
+        run.assert_not_called()
+
 
 class DeploymentTests(unittest.TestCase):
     def setUp(self):
@@ -104,6 +111,44 @@ class DeploymentTests(unittest.TestCase):
 
     def tearDown(self):
         self.temp.cleanup()
+
+    def test_baseline_build_cannot_replace_candidate_cached_executable(self):
+        source = self.root / 'source'
+        cargo = self.root / 'cargo'
+        target = self.root / 'target'
+        for folder in (source, cargo, target):
+            folder.mkdir()
+        (target / 'executable').write_text('candidate')
+        (target / 'generated-link').symlink_to('/outside-the-build')
+        self.pipeline.toolchain = self.root / 'toolchain'
+        self.pipeline.repo = type('Repo', (), {
+            'pin': lambda self: 'pin', 'read_tree': lambda self, pin: {},
+            'materialize': lambda self, before, after, folder: None})()
+        phases = []
+        def fake_sandbox(work, command, **kwargs):
+            return command, {dest: path for _, path, dest in kwargs['mounts']}
+        def fake_run(args, **kwargs):
+            command, mounts = args
+            executable = mounts['/target'] / 'executable'
+            if 'cargo' in command:
+                if mounts['/source'].name == 'baseline':
+                    self.assertTrue((mounts['/target'] / 'generated-link').is_symlink())
+                    executable.write_text('baseline')
+                else:
+                    self.assertEqual(executable.read_text(), 'candidate')
+            else:
+                phase = command[-1]
+                phases.append(phase)
+                self.assertEqual(executable.read_text(), 'baseline' if phase == 'before' else 'candidate')
+                for index in range(4):
+                    (mounts['/evidence'] / f'{phase}-{index}.png').write_bytes(b'fixture')
+        space = type('Disk', (), {'free': 100 * 1024**3})()
+        with patch.object(p, 'sandbox', side_effect=fake_sandbox), patch.object(p, 'run', side_effect=fake_run), patch.object(p.shutil, 'disk_usage', return_value=space):
+            hashes = self.pipeline.capture_demo(self.root, source, cargo, target)
+        self.assertEqual(phases, ['before', 'after'])
+        self.assertEqual(len(hashes), 8)
+        self.assertEqual((target / 'executable').read_text(), 'candidate')
+        self.assertFalse((self.root / 'baseline-target').exists())
 
     def test_shutdown_failure_never_installs(self):
         with patch.object(p, 'transaction'), patch.object(p, 'run'), patch.object(p, 'running', return_value=True), patch.object(p, 'quit_app', side_effect=p.Error('shutdown failed')), patch.object(p, 'package_install') as install:

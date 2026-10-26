@@ -244,6 +244,9 @@ def sandbox(work, command, *, network=False, mounts=(), toolchain=None):
 
 def smoke(work, executable, version):
     """Start the production login window on a private X server and private bus."""
+    executable = Path(executable).absolute()
+    if executable.resolve() != executable or not executable.is_file():
+        raise Error('smoke executable must be a regular file without symlink parents')
     script = '''import os, subprocess, time
 os.makedirs('/home/build/runtime', mode=0o700, exist_ok=True)
 assert subprocess.check_output(['/app', '--version'], text=True).strip() == 'spotifast VERSION'
@@ -455,23 +458,7 @@ class Pipeline:
                 for path in (target / 'debug' / directory).iterdir():
                     if path.is_file() and not path.is_symlink() and not path.suffix and os.access(path, os.X_OK):
                         path.unlink()
-            evidence = folder / 'evidence'
-            evidence.mkdir()
-            baseline = folder / 'baseline'
-            baseline.mkdir()
-            self.repo.materialize({}, self.repo.read_tree(self.repo.pin()), baseline)
-            for phase, inputs in [('before', baseline), ('after', source)]:
-                ui_mounts = [('--ro-bind', inputs, '/source'), ('--bind', cargo, '/cargo'),
-                             ('--bind', target, '/target'), ('--bind', evidence, '/evidence'),
-                             ('--ro-bind', HERE / 'visual_check.py', '/visual_check.py')]
-                run(sandbox(folder, ['env', '--chdir=/source', 'cargo', 'build', '--offline',
-                                     '--locked', '--features', 'demo', '--bin', 'spotifast'],
-                            mounts=ui_mounts, toolchain=self.toolchain), capture=False)
-                run(sandbox(folder, ['dbus-run-session', '--', 'python3', '-I', '/visual_check.py', phase],
-                            mounts=ui_mounts, toolchain=self.toolchain), capture=False)
-            manifest['visual_evidence'] = {path.name: sha(path) for path in evidence.glob('*.png')}
-            if len(manifest['visual_evidence']) != 8:
-                raise Error('incomplete visual evidence')
+            manifest['visual_evidence'] = self.capture_demo(folder, source, cargo, target)
             # These completed QA outputs are not production artifacts. Record
             # their result, then reclaim their private debug profile before the
             # separate release build. This never cleans another checkout/cache.
@@ -499,6 +486,45 @@ class Pipeline:
             manifest['state'] = 'failed'
             save(folder / 'manifest.json', manifest)
             raise
+
+    def capture_demo(self, folder, source, cargo, target):
+        evidence = folder / 'evidence'
+        evidence.mkdir()
+        baseline = folder / 'baseline'
+        baseline.mkdir()
+        self.repo.materialize({}, self.repo.read_tree(self.repo.pin()), baseline)
+        # Each source snapshot owns its writable target. Reusing one target
+        # across /source mounts can reuse the wrong application when the
+        # candidate's source mtimes predate the baseline build. Copy the
+        # completed dependency cache, never hard-link writable outputs.
+        baseline_target = folder / 'baseline-target'
+        copy_bytes = sum(path.stat().st_blocks * 512 for path in target.rglob('*')
+                         if not path.is_symlink() and path.is_file())
+        if shutil.disk_usage(folder).free < copy_bytes + 4 * 1024**3:
+            raise Error('insufficient space for isolated baseline cache plus 4 GiB build headroom')
+        # Build outputs are untrusted. Preserve links as links so copying never
+        # follows a generated absolute symlink into the host filesystem.
+        shutil.copytree(target, baseline_target, symlinks=True)
+        for phase, inputs in [('before', baseline), ('after', source)]:
+            ui_target = baseline_target if phase == 'before' else target
+            ui_mounts = [('--ro-bind', inputs, '/source'), ('--bind', cargo, '/cargo'),
+                         ('--bind', ui_target, '/target'), ('--bind', evidence, '/evidence'),
+                         ('--ro-bind', HERE / 'visual_check.py', '/visual_check.py')]
+            run(sandbox(folder, ['env', '--chdir=/source', 'cargo', 'build', '--offline',
+                                 '--locked', '--features', 'demo', '--bin', 'spotifast'],
+                        mounts=ui_mounts, toolchain=self.toolchain), capture=False)
+            run(sandbox(folder, ['dbus-run-session', '--', 'python3', '-I', '/visual_check.py', phase],
+                        mounts=ui_mounts, toolchain=self.toolchain), capture=False)
+            if phase == 'before':
+                shutil.rmtree(baseline_target)
+        hashes = {}
+        for path in evidence.glob('*.png'):
+            if path.is_symlink() or not path.is_file() or path.resolve().parent != evidence.resolve():
+                raise Error('unsafe generated visual evidence')
+            hashes[path.name] = sha(path)
+        if len(hashes) != 8:
+            raise Error('incomplete visual evidence')
+        return hashes
 
     def package(self, folder, version):
         root = folder / 'package-root'
