@@ -36,7 +36,7 @@ No third-party Python packages are needed.
 | `status` | Print the pin, ordered series, root source drift, detached submodule HEAD and unstaged additions. No fetch. |
 | `capture <name>` | Append a deterministically numbered, binary-capable patch for current root edits. Stage new files first. Names use lowercase letters, digits and hyphens. |
 | `refresh` | Replace only the final patch with the difference from upstream plus preceding patches. |
-| `apply` | Apply the series to a pristine root source, or do nothing if it already matches. Refuse other source changes. |
+| `apply` | Apply the series to a pristine root source, or do nothing if it already matches. Refuse other worktree or staged source changes. |
 | `verify` | Reconstruct and compare source bytes, file types and executable modes; also check the pristine submodule and its detached pin. Does not change source or the developer index. |
 | `update <ref>` | Fetch that explicit ref from the hardcoded public upstream URL, validate it and preflight the whole series before changing root source, submodule source/HEAD and `upstream.json`. Source must match the series and the staged source. |
 | `test` | Run this directory's fixture tests, then verify the real source/submodule. No app tests or network. |

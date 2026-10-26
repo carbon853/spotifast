@@ -271,6 +271,8 @@ class Repo:
         if actual==expected: return 'already matches (no-op)'
         pristine=self.read_tree(self.pin())
         if actual!=pristine: raise Error('refusing to overwrite local source changes; capture or restore them first')
+        if self.staged_source() != actual:
+            raise Error('refusing to overwrite staged source changes; index source differs')
         self.materialize(actual,expected)
         return 'applied'
     def update(self,ref):

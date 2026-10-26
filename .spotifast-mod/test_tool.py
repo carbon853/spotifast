@@ -50,7 +50,7 @@ class MaintenanceTests(unittest.TestCase):
         second=dict(first,a=('100755',b'two\n'))
         self.change(second);self.r.capture('second');self.assertEqual(self.r.verify(),second)
         self.assertEqual(index,(self.root/'.git/index').read_bytes())
-        self.change(self.base);self.assertEqual(self.r.apply(),'applied');self.assertEqual(self.r.scan(),second)
+        self.change(self.base);self.stage(self.base);self.assertEqual(self.r.apply(),'applied');self.assertEqual(self.r.scan(),second)
         before=(self.root/'a').stat().st_mtime_ns
         self.assertIn('no-op',self.r.apply());self.assertEqual(before,(self.root/'a').stat().st_mtime_ns)
         self.assertFalse((self.root/'SENTINEL').exists())
@@ -116,7 +116,7 @@ class MaintenanceTests(unittest.TestCase):
         (self.root/'hooks').rename(self.r.meta/'hooks')
         (self.root/'.gitattributes').write_text('* filter=evil diff=evil\n')
         self.stage(self.r.scan());self.r.capture('attributes');self.r.verify()
-        self.change(self.base);self.r.apply();self.r.verify()
+        self.change(self.base);self.stage(self.base);self.r.apply();self.r.verify()
         self.assertFalse(sentinel.exists())
     def submodule(self):
         sub=self.root/'lib/spotifast'
@@ -193,6 +193,12 @@ class MaintenanceTests(unittest.TestCase):
         target.parent.mkdir(exist_ok=True);shutil.copyfile(source,target);source.unlink()
         self.r.close();self.r=m.Repo(self.root)
         self.r.verify()
+    def test_staged_only_changes_block_apply_to_pristine_source(self):
+        (self.root/'a').write_text('feature\n');self.r.capture('feature')
+        self.change(self.base)
+        self.stage(dict(self.base,a=('100644',b'staged-only work')))
+        with self.assertRaisesRegex(m.Error,'staged source changes'):self.r.apply()
+        self.assertEqual(self.r.scan(),self.base)
     def test_series_validation(self):
         for series in ['../bad\n','0001-x.patch\n0001-x.patch\n','/tmp/x\n']:
             (self.r.meta/'series').write_text(series)

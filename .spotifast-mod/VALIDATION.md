@@ -4,7 +4,7 @@ This setup changes the root agent guide and adds maintenance infrastructure,
 one approved upstream submodule, and a static capability audit. It makes no
 application feature changes and produces no application build.
 
-`python3 -I .spotifast-mod/tool.py test` passes 17 fixture tests and then verifies
+`python3 -I .spotifast-mod/tool.py test` passes 18 fixture tests and then verifies
 that the root equals the selected upstream tree plus the ordered series, and that
 the submodule remains pristine at the recorded revision.
 
