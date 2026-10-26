@@ -43,7 +43,7 @@ def check(revision):
                     metadata[name]=(mode,data)
                 elif name.startswith('.spotifast-mod/'):
                     rel=name.split('/',1)[1];m.safe_path(rel)
-                    if rel.split('/')[0] in ('scratch','lock','__pycache__') or mode!='100644':
+                    if rel.split('/')[0] in ('scratch','local','lock','__pycache__') or mode!='100644':
                         raise m.Error('unexpected maintenance entry: '+name)
                     metadata[name]=(mode,data)
                 else:
@@ -52,7 +52,7 @@ def check(revision):
             if '.gitmodules' not in metadata or gitlink is None:raise m.Error('approved submodule missing')
             pin=json.loads(metadata['.spotifast-mod/upstream.json'][1])
             if pin!={'url':m.UPSTREAM,'revision':gitlink}:raise m.Error('submodule/pin mismatch')
-            for name in ('tool.py','test_tool.py','fresh_check.py'):
+            for name in ('tool.py','test_tool.py','fresh_check.py','local.py','rebase.py','test_local.py','visual_check.py'):
                 if metadata['.spotifast-mod/'+name][1]!=(HERE/name).read_bytes():
                     raise m.Error('fresh maintenance code differs from reviewed code: '+name)
             r.materialize({},source)

@@ -204,7 +204,7 @@ class Repo:
         if not patch: raise Error('no source changes')
         if name:
             if not re.fullmatch('[a-z0-9][a-z0-9-]*',name): raise Error('use a lowercase hyphenated name')
-            filename=f'{len(names)+1:04d}-{name}.patch'
+            filename=f'{max((int(n[:4]) for n in names), default=0)+1:04d}-{name}.patch'
             if (self.meta/'patches'/filename).exists(): raise Error('patch already exists')
         else: filename=names[-1]
         atomic(self.meta/'patches'/filename,patch)
@@ -344,7 +344,9 @@ def main():
                                   'drift':drift(repo.replay(),repo.scan()),
                                   'submodule_head':(repo.sub_gitdir()/'HEAD').read_text().strip(),
                                   'unstaged_additions':sorted(set(repo.scan())-set(repo.replay())-repo.staged())},indent=2))
-            elif args.command in ('capture','update'):
+            elif args.command=='update':
+                raise Error('use python3 -I .spotifast-mod/rebase.py start <ref> for reviewed staging integration')
+            elif args.command=='capture':
                 if not args.argument: raise Error('argument required')
                 print(getattr(repo,args.command)(args.argument))
             elif args.command=='refresh': print(repo.capture())
@@ -352,6 +354,7 @@ def main():
             elif args.command=='verify': repo.verify(); print('source matches pinned upstream + ordered patches')
             else:
                 subprocess.run(['/usr/bin/python3','-I',str(repo.meta/'test_tool.py')],check=True,env=repo.env)
+                subprocess.run(['/usr/bin/python3','-I',str(repo.meta/'test_local.py')],check=True,env=repo.env)
                 repo.verify(); print('maintenance tests and replay verification passed')
         finally: repo.close()
 

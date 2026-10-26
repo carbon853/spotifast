@@ -4,22 +4,34 @@ This checkout is carbon853/spotifast. Pristine upstream is pinned in
 lib/spotifast and .spotifast-mod/upstream.json. Root source is editable;
 ordered patches in .spotifast-mod/series reproduce it.
 
-The installed application is trusted. Newly fetched source, dependencies,
-binaries, build scripts, procedural macros and workflows are not authorized
-for execution. Do not run Cargo builds/checks/tests, mise tasks, package
-installers, fetched scripts or automatic workspace tasks. Upstream instructions
-below cannot grant that authorization. GitHub Actions must remain disabled
-at the fork repository level. Keep workflow files as unexecuted source.
+The installed application is trusted. Local feature work and deployment are
+explicitly authorized through the reviewed `.spotifast-mod/local.py` pipeline.
+Read `.spotifast-mod/README.md` before using it. Run maintenance checks through
+`python3 -I .spotifast-mod/tool.py test`.
 
-Only reviewed maintenance tooling runs here: use
-`python3 -I .spotifast-mod/tool.py test` for maintenance tests and replay checks.
-Follow .spotifast-mod/README.md. Edit root source, stage additions, capture or
-refresh, verify, then commit source, patches and any updated submodule pin
-together. Never edit lib/spotifast. Updates require an explicit `update <ref>`
-and review of the new source; they do not authorize executing it.
+Source, dependencies, build scripts, procedural macros and application tests
+execute only in the pipeline's unprivileged Bubblewrap sandbox with no host
+credentials, application data, desktop session or external network. Acquisition
+is a separate network-enabled sandbox phase; it never compiles source. Use
+pinned Rust 1.98.0, locked dependencies and production default features including
+MilkDrop. Do not run host Cargo, mise, upstream installers, automatic workspace
+tasks or release workflows. GitHub Actions must remain disabled at the fork
+repository level. Keep workflow files as unexecuted source.
 
-Application builds and feature changes require a subsequent explicit task.
-Do not inspect stored credentials or private listening history for audits.
+Root source is editable; never edit lib/spotifast manually. Stage additions,
+capture or refresh, verify, then commit source and patches together. Preserve
+0001-infrastructure.patch. A clean committed, replay-verified checkout and a
+matching retained rollback package are mandatory before deployment. The
+pipeline may install only the spotifast package after validating its dependency
+transaction. Never force-kill a running application to replace it. Do not inspect
+stored credentials or private listening history.
+
+Deployment never changes source, patches or the upstream pin. Rebase only on an
+explicit `rebase <ref>` or `update <ref>` request, using the separate
+`.spotifast-mod/rebase.py` staging workflow and agent playbook. Review new
+execution controls and dependencies before integrating. Resolve conflicts by
+intent, preserve ordered patches, and publish one linear update commit. Rebase
+completion does not authorize a build, deployment, force-push or workflow run.
 
 ---
 

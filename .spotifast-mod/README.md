@@ -15,13 +15,12 @@ Run only reviewed maintenance code, using the system Python in isolated mode:
 /usr/bin/python3 -I .spotifast-mod/tool.py test
 ```
 
-No Cargo, Rust compilation, build scripts, proc macros, mise, package installers,
-upstream tests, fetched scripts, or downloaded executables are run. Do not trust
-this workspace in an automatic task runner. Root `AGENTS.md` makes this boundary
-explicit and overrides upstream build instructions. GitHub Actions is disabled
-at the repository level; workflow files remain present as source. Updates do
-not grant execution permission or alter that setting. The installed app is
-trusted; that trust does not extend to new builds or dependencies.
+Feature builds are explicitly authorized only through the reviewed local pipeline
+below. Source, dependencies, build scripts and proc macros run in Bubblewrap,
+without host credentials, app data, desktop sockets or external networking.
+Dependency and toolchain acquisition is separate from compilation. Never run
+host Cargo, mise, fetched scripts, package workflows or automatic workspace
+tasks. GitHub Actions remains disabled at the fork repository level.
 
 Requirements: Linux/POSIX, `/usr/bin/git`, `/usr/bin/python3` (3.11+), and a regular
 checkout with a real `.git` directory. Linked root worktrees, submodules other
@@ -38,21 +37,19 @@ No third-party Python packages are needed.
 | `refresh` | Replace only the final patch with the difference from upstream plus preceding patches. |
 | `apply` | Apply the series to a pristine root source, or do nothing if it already matches. Refuse other worktree or staged source changes. |
 | `verify` | Reconstruct and compare source bytes, file types and executable modes; also check the pristine submodule and its detached pin. Does not change source or the developer index. |
-| `update <ref>` | Fetch that explicit ref from the hardcoded public upstream URL, validate it and preflight the whole series before changing root source, submodule source/HEAD and `upstream.json`. Source must match the series and the staged source. |
-| `test` | Run this directory's fixture tests, then verify the real source/submodule. No app tests or network. |
+| `update <ref>` | Retired entry point; use the explicit staging rebase workflow below. |
+| `test` | Run maintenance, deployment-failure and rebase fixture tests, then verify real source/submodule. No app tests or network. |
 
-The update command intentionally leaves the developer's index unchanged. Stage
-`lib/spotifast`, `upstream.json` and the updated root source, verify, then commit
-them together. A replay failure identifies the failing patch and leaves source,
-pin and index unchanged. Downloaded Git objects may remain after a failed update.
-There is no automatic upstream pull or implicit reference refresh.
+Source integration is separate from local deployment. The old internal updater
+is retained for maintenance regression fixtures; the CLI directs agents to the
+staging workflow. No command implicitly rebases.
 
 ## Editing and committing
 
 1. Edit root source. Do not edit the submodule.
 2. Stage new source files so capture can distinguish intended additions from
    unexpected untracked files. All untracked source, including ignored files,
-   is checked; keep build output outside the root (builds are not authorized).
+   is checked; build output stays in reserved, ignored `.spotifast-mod/local/`.
 3. Run `capture descriptive-name`, or `refresh` while revising the latest feature.
 4. Run `test`. Commit root source and its patches together, including the series.
 5. Before pushing, check that fork Actions remains disabled:
@@ -143,3 +140,97 @@ See [the capability audit](audit/CAPABILITIES.md), [exact source/dependency pins
 and [installed package metadata](audit/installed-metadata.json). This is a static
 capability review, not a claim that the installed binary matches a source tree or
 that every transitive dependency has been audited.
+
+## Local build and deployment
+
+Run `python3 -I .spotifast-mod/local.py COMMAND` as the desktop user:
+
+| Command | Effect |
+| --- | --- |
+| `doctor` | Report clean-source/replay, native dependency, toolchain, sandbox, disk and rollback readiness. |
+| `doctor --prepare` | Acquire Rust 1.98.0 using the installed trusted rustup in an isolated network sandbox. Download and validate the installed version's rollback package against release checksums and installed file hashes. No compilation or installation. |
+| `build` | Snapshot the exact clean main commit, acquire locked dependencies, run offline checks, compile default features including MilkDrop, smoke-test the production login window, and package a versioned amd64 `.deb`. |
+| `install <build-id>` | Revalidate source, manifest, archive and an install transaction affecting only Spotifast; gracefully quit through MPRIS, replace the package, check ownership/hashes/version/startup, and relaunch if it was running. |
+| `deploy` | Build, then install that exact build. Never fetch/integrate upstream source. |
+| `status` | Report installed package/hash, recorded pin and deployment journal, without app data. |
+| `rollback` | Restore the retained previous package, with the same transaction/shutdown/verification safeguards. |
+
+Requirements include Bubblewrap with user namespaces, 20 GiB available for build
+outputs on internal storage (reusable caches count toward this, with at least
+8 GiB still free), Rust 1.98.0 (acquired privately), a C/C++ toolchain, CMake,
+libclang, pkg-config, ALSA/PipeWire/Wayland/XKB/OpenGL/OpenSSL/DBus development
+libraries, Ruby with development headers, Xvfb, xdotool and dbus-run-session. `doctor` reports exact gaps. The
+pipeline never installs system prerequisites. Run final installation from your
+own terminal after `sudo -v`; it uses `sudo -n` and will stop before quitting the
+app if privilege is unavailable.
+
+Builds use a read-only source snapshot and separate writable Cargo cache and
+target directory. The acquisition sandbox has network but no host home or bus.
+The compile/test sandbox has no external network. Both use an allowlisted
+environment and minimal filesystem mounts. No desktop credential store is
+available. Ruby gems are acquired against Gemfile.lock checksums, then installed and the
+documentation built offline. Before/after demo captures cover light/dark themes
+at 1280×800 and 800×600 on a private X server; their hashes go in the manifest.
+Review these captures before initial installation. The production executable has
+no demo feature. Native ELF dependencies
+are inferred with dpkg-shlibdeps and supplemented with the runtime dlopen
+libraries from the packaging policy. Packages cannot contain maintainer scripts,
+symlinks, unexpected files or user-data paths.
+
+The manifest records the commit, upstream pin, ordered patch hashes, toolchain,
+features, package hash and every payload hash. Failed builds never become
+installable artifacts. Successful build scratch is removed; failed build scratch
+is retained for diagnosis and should be removed after recording the failure.
+The current rollback package must remain in `local/packages/`. Do not move this
+storage to `/tmp` or removable storage.
+
+Installation preserves the package name, `/usr/bin/spotifast`, launcher/icon,
+license, readme and Omarchy assets. It does not purge the package or write to user
+configuration, state, caches or credential stores. Relaunch preserves HOME and
+XDG location overrides. All production smoke tests use private dummy directories,
+a private X server and a private DBus session. See [configuration compatibility](CONFIG-COMPATIBILITY.md).
+
+A failed install or startup attempts to restore the matching previous package.
+A failed graceful shutdown never force-kills the app. The journal is written
+before package replacement; an interrupted transaction leaves its previous
+package recorded for explicit `rollback`. Package rollback cannot reverse any
+normal configuration updates or token refreshes performed by a real app launch.
+Do not copy, export or inspect private grants/history to validate deployment.
+
+## Explicit rebase agent playbook
+
+Run `python3 -I .spotifast-mod/rebase.py COMMAND`:
+
+1. `check` fetches public upstream HEAD into the object database and reports
+   commits, paths and execution-control changes. It changes neither the recorded
+   pin nor source. Recommend integration only for meaningful security, Spotify
+   compatibility, playback, reliability, performance or relevant interface work.
+   Documentation/formatting alone is insufficient. Deployment does not call it.
+2. Only after an explicit `rebase <ref>` or `update <ref>` request, run
+   `start <ref>`. It resolves the ref once to an immutable commit and stages a
+   candidate under `scratch/rebase/`, preserving the working tree and installation.
+3. Read `upstream.diff` and `execution-controls.diff`. Review Cargo manifests and
+   lock changes, build scripts, toolchain, `.cargo`, workflows, packaging and agent
+   policies. Fill `review.json` with the exact pin, reason and behavioral review.
+   This record is an agent's review attestation, not a request for new permission.
+4. Run `continue`. The ordered patches replay against the candidate. On conflict,
+   compare the original patch, upstream change and staging source. Resolve only
+   staging source, preserve type-to-filter, the green fixed indicator, execution
+   controls and deployment separation. Do not blanket-select ours/theirs. Record
+   each resolution in `resolved_patches`, then continue. Unmerged binary/delete
+   conflicts require manual, intent-preserving edits. Patches are regenerated and
+   replayed independently. An empty patch requires a `redundant_patches` entry
+   documenting equivalent upstream behavior and verification before removal.
+   The initial infrastructure patch cannot be removed.
+5. A verified candidate remains staged for review. `continue --author-name NAME
+   --author-email EMAIL` publishes one linear local commit with source, regenerated
+   patches, submodule pin and review record. It does not build, push or install.
+   Source must remain clean and unchanged since start. The first infrastructure
+   patch is retained in series order, with later policy changes in their own patch.
+6. `abort` discards a pre-publication candidate without changing source, pin or
+   installation. If publication was interrupted, preserve `recovery.json` and
+   inspect changes before restoring the recorded commit and submodule. Do not
+   reset unrelated edits. Abort refuses to erase that recovery evidence.
+7. Run maintenance tests, review the resulting linear commit, check Actions stays
+   disabled, and push without rewriting published history. App execution and
+   installation require their own explicit task after a future rebase.
