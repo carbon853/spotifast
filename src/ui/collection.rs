@@ -867,6 +867,47 @@ fn table_contents(app: &mut App, ui: &mut egui::Ui, table: Table<'_>) {
     let mut row_responses = Vec::new();
     let mut missing = None;
     let mut retry_shown = false;
+    let liked_focus_id = egui::Id::new("liked-row-focus");
+    let liked_view_id = egui::Id::new("liked-row-focus-view");
+    let pending_id = egui::Id::new("liked-filter-focus");
+    let previous_focus = ui.data(|data| data.get_temp::<(egui::Id, String)>(liked_focus_id));
+    let previous_view = ui.data(|data| data.get_temp::<String>(liked_view_id));
+    let restore_liked_focus = table.page == Page::LikedSongs
+        && !ui.ctx().text_edit_focused()
+        && app.dialog.is_none()
+        && !app.show_devices
+        && !app.show_update
+        && !egui::Popup::is_any_open(ui.ctx())
+        && (ui
+            .data(|data| data.get_temp::<bool>(pending_id))
+            .unwrap_or(false)
+            || (previous_view.as_ref() != Some(&view)
+                && previous_focus
+                    .as_ref()
+                    .is_some_and(|(id, _)| ui.memory(|memory| memory.has_focus(*id)))));
+    let focus_row = restore_liked_focus
+        .then(|| {
+            entry
+                .visible
+                .iter()
+                .position(|index| {
+                    previous_focus
+                        .as_ref()
+                        .is_some_and(|(_, uri)| table.items[*index].0.uri() == uri)
+                })
+                .unwrap_or(0)
+        })
+        .filter(|row| *row < rows);
+    if let Some(row) = focus_row {
+        let rect = Rect::from_min_size(
+            pos2(ui.cursor().left(), list_top + row as f32 * row_height),
+            vec2(ui.available_width(), row_height),
+        );
+        ui.scroll_to_rect(rect, None);
+    }
+    if table.page == Page::LikedSongs {
+        ui.data_mut(|data| data.insert_temp(liked_view_id, view.clone()));
+    }
     widgets::virtual_rows(ui, rows, row_height, |ui, row| {
         let Some(index) = item_index(row) else {
             let unavailable = finite.is_some_and(|page| {
@@ -954,6 +995,15 @@ fn table_contents(app: &mut App, ui: &mut egui::Ui, table: Table<'_>) {
                 position: playlist_position(&table, index),
             },
         );
+        if focus_row == Some(row) {
+            response.request_focus();
+            ui.data_mut(|data| data.insert_temp(pending_id, false));
+        }
+        if table.page == Page::LikedSongs && response.has_focus() {
+            ui.data_mut(|data| {
+                data.insert_temp(liked_focus_id, (response.id, item.uri().to_string()))
+            });
+        }
         row_responses.push((row, response));
         if let Some(asked) = asked {
             pick = Some((row, asked));
@@ -3486,6 +3536,8 @@ mod tests {
         height: f32,
         editable: bool,
         items_revision: u64,
+        liked: bool,
+        can_load_more: bool,
     }
 
     impl KeyboardTable {
@@ -3501,6 +3553,8 @@ mod tests {
                 height: 600.0,
                 editable: false,
                 items_revision: 0,
+                liked: false,
+                can_load_more: false,
             }
         }
 
@@ -3515,6 +3569,12 @@ mod tests {
                     ..Default::default()
                 },
                 |ui| {
+                    if self.liked {
+                        super::super::liked_filter::handle(&self.app, ui.ctx());
+                        super::super::keys::handle(&mut self.app, ui.ctx());
+                        self.filter = super::super::liked_filter::query(ui.ctx());
+                        super::super::liked_filter::indicator(ui, &self.app.palette);
+                    }
                     widgets::search_field(
                         ui,
                         &self.app.palette,
@@ -3524,6 +3584,11 @@ mod tests {
                         "Filter",
                         220.0,
                     );
+                    if self.liked {
+                        ui.data_mut(|data| {
+                            data.insert_temp(egui::Id::new("liked-filter"), self.filter.clone())
+                        });
+                    }
                     egui::ScrollArea::vertical().animated(false).show(ui, |ui| {
                         table(
                             &mut self.app,
@@ -3543,10 +3608,14 @@ mod tests {
                                 show_added: false,
                                 show_added_by: false,
                                 show_plays: false,
-                                page: Page::Playlist("test".into()),
+                                page: if self.liked {
+                                    Page::LikedSongs
+                                } else {
+                                    Page::Playlist("test".into())
+                                },
                                 loading: false,
                                 error: None,
-                                can_load_more: false,
+                                can_load_more: self.can_load_more,
                                 filter: &self.filter,
                                 items_revision: self.items_revision,
                                 plays_shown_rows: false,
@@ -3613,6 +3682,89 @@ mod tests {
                 .unwrap()
                 .to_string()
         }
+    }
+
+    #[test]
+    fn liked_typing_preserves_song_focus_and_supports_navigation() {
+        let mut table = KeyboardTable::new();
+        table.liked = true;
+        table.app.open(Page::LikedSongs);
+        table.focus_song("Bohemian Rhapsody");
+        table.app.actions.clear();
+        table.frame(vec![egui::Event::Text("queen".into())]);
+        assert_eq!(table.filter, "queen");
+        assert!(table.focused_label().starts_with("Play Bohemian Rhapsody,"));
+        assert!(table.app.actions.is_empty());
+        table.key(egui::Key::Escape);
+        assert!(table.filter.is_empty());
+        table.frame(vec![egui::Event::Text("desp".into())]);
+        assert!(table.focused_label().starts_with("Play Despacito,"));
+        assert!(table.app.actions.is_empty());
+        table.key(egui::Key::Enter);
+        assert!(!table.app.actions.is_empty());
+    }
+
+    #[test]
+    fn liked_filter_survives_no_matches_and_partial_loading() {
+        let mut table = KeyboardTable::new();
+        table.liked = true;
+        table.can_load_more = true;
+        table.app.open(Page::LikedSongs);
+        table.focus_song("Bohemian Rhapsody");
+        table.app.actions.clear();
+        table.frame(vec![egui::Event::Text("zz-no-match".into())]);
+        assert_eq!(table.filter, "zz-no-match");
+        assert!(
+            table
+                .app
+                .actions
+                .iter()
+                .any(|action| matches!(action, Action::LoadMore(Page::LikedSongs)))
+        );
+        table.key(egui::Key::Escape);
+        assert!(table.focused_label().starts_with("Play Bohemian Rhapsody,"));
+        table.app.table_sorts.insert(
+            Page::LikedSongs,
+            TableSort {
+                column: SortColumn::Title,
+                ascending: false,
+            },
+        );
+        table.frame(vec![egui::Event::Text("bohemian".into())]);
+        assert!(table.focused_label().starts_with("Play Bohemian Rhapsody,"));
+    }
+
+    #[test]
+    fn liked_filter_yields_to_interaction_owners_and_other_pages() {
+        let mut table = KeyboardTable::new();
+        table.liked = true;
+        table.app.open(Page::LikedSongs);
+        table.frame(vec![]);
+        for owner in 0..6 {
+            table.app.dialog = (owner == 0).then_some(crate::model::Dialog::Shortcuts);
+            table.app.show_devices = owner == 1;
+            table.app.show_update = owner == 2;
+            table.app.lyrics_fullscreen = (owner == 3).then_some(false);
+            if owner == 4 {
+                egui::Popup::open_id(&table.ctx, egui::Id::new("mod-filter-menu"));
+            }
+            if owner == 5 {
+                table.app.open(Page::Home);
+            }
+            table.frame(vec![egui::Event::Text("x".into())]);
+            assert!(table.filter.is_empty());
+            egui::Popup::close_all(&table.ctx);
+        }
+        table.app.open(Page::LikedSongs);
+        table.app.lyrics_fullscreen = None;
+        table
+            .ctx
+            .memory_mut(|memory| memory.request_focus(egui::Id::new("keyboard-filter")));
+        table.frame(vec![]);
+        table.frame(vec![egui::Event::Text("field".into())]);
+        assert_eq!(table.filter, "field");
+        assert_eq!(super::super::liked_filter::query(&table.ctx), "field");
+        assert!(table.ctx.text_edit_focused());
     }
 
     /// Select all takes every song the list shows, Copy hands the picked

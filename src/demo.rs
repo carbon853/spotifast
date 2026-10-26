@@ -1988,9 +1988,93 @@ mod tests {
         app.backend.shutdown();
     }
 
-    /// #990: Page Up/Down scroll the main page, Home/End jump to its ends.
-    /// The selection, page, navigation history and playback state stay put,
-    /// at a normal and a narrow window size in both themes.
+    /// The mod indicator belongs to the fixed header at both supported sizes.
+    #[test]
+    fn mod_search_indicator_stays_visible_and_clears_in_both_themes() {
+        for (width, height) in [(1280.0, 800.0), (800.0, 600.0)] {
+            for light in [false, true] {
+                let (ctx, mut app) = accessible_app("mod-search");
+                app.open(Page::LikedSongs);
+                app.settings.theme = if light {
+                    crate::settings::ThemeChoice::Light
+                } else {
+                    crate::settings::ThemeChoice::Dark
+                };
+                app.actions.push(Action::SettingsChanged);
+                let mut time = 0.0;
+                let mut frame = |app: &mut App, events: Vec<egui::Event>| {
+                    time += 1.0 / 60.0;
+                    let mut output = ctx.run_ui(
+                        egui::RawInput {
+                            screen_rect: Some(egui::Rect::from_min_size(
+                                egui::Pos2::ZERO,
+                                egui::vec2(width, height),
+                            )),
+                            time: Some(time),
+                            events,
+                            ..Default::default()
+                        },
+                        |ui| app.frame_ui(ui),
+                    );
+                    output.textures_delta.clear();
+                    output.platform_output.accesskit_update.unwrap()
+                };
+                frame(&mut app, vec![]);
+                let playing = app.now_playing().map(|now| (now.uri, now.playing));
+                frame(&mut app, vec![egui::Event::Text("a".into())]);
+                for _ in 0..30 {
+                    frame(&mut app, vec![]);
+                }
+                let bounds = |tree: &egui::accesskit::TreeUpdate| {
+                    tree.nodes
+                        .iter()
+                        .find(|(_, node)| node.value() == Some("Mod search: a"))
+                        .and_then(|(_, node)| node.bounds())
+                        .expect("visible search indicator")
+                };
+                let before = bounds(&frame(&mut app, vec![]));
+                frame(
+                    &mut app,
+                    vec![keyboard(egui::Key::PageDown, egui::Modifiers::NONE)],
+                );
+                for _ in 0..30 {
+                    frame(&mut app, vec![]);
+                }
+                let tree = frame(&mut app, vec![]);
+                assert_eq!(before, bounds(&tree));
+                assert!(before.x0 >= 0.0 && before.x1 <= f64::from(width));
+                let scrolled = egui::Id::new(("page-scrolled", Page::LikedSongs.encode()));
+                assert!(
+                    ctx.data(|data| data.get_temp::<f32>(scrolled))
+                        .unwrap_or(0.0)
+                        > 0.0
+                );
+                assert_eq!(app.now_playing().map(|now| (now.uri, now.playing)), playing);
+                assert_eq!(app.palette.dark, !light);
+                let clear = accessible_node(
+                    &tree,
+                    "Clear Liked Songs filter",
+                    egui::accesskit::Role::Button,
+                );
+                frame(
+                    &mut app,
+                    vec![accessible_action(
+                        clear,
+                        egui::accesskit::Action::Click,
+                        None,
+                    )],
+                );
+                assert_eq!(
+                    ctx.data(|data| data.get_temp::<String>(egui::Id::new("liked-filter")))
+                        .as_deref(),
+                    Some("")
+                );
+                app.backend.shutdown();
+            }
+        }
+    }
+
+    /// #990: Page keys scroll the page without changing selection or playback.
     #[test]
     fn page_navigation_scrolls_the_main_page() {
         let command = if cfg!(target_os = "macos") {

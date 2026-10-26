@@ -44,6 +44,20 @@ https://github.com/user-attachments/assets/a5f669ce-b3b7-4f8e-9933-976a78876c7e
 
 ## Your music, on your desktop
 
+This local fork adds type-to-filter in Liked Songs. With the song list active,
+type a letter or digit to filter song titles, artists, and albums. Continue
+typing spaces or punctuation, use Backspace to edit, and Escape or Clear to
+clear. The existing filter field shares the same query. A green outlined
+“Mod search” indicator stays below the toolbar while the list scrolls. Typing
+does not start playback; arrow keys and Enter still navigate and play rows.
+Text fields, menus, dialogs, fullscreen lyrics, and modified shortcuts retain
+their controls. Space plays or pauses when the query is empty. The query stays
+until cleared, with no timeout or additional network search.
+
+Local builds and installation use the reviewed commands in
+[the fork maintenance guide](.spotifast-mod/README.md). Deployment never updates
+the upstream source; rebases require a separate explicit request.
+
 | Feature | What you can do |
 |---|---|
 | **Library and search** | Browse playlists, Liked Songs, albums, artists, and podcasts. Search the catalogue and edit playlists you own. |

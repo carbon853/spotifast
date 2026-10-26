@@ -10,6 +10,7 @@ pub(crate) mod friends;
 pub mod home;
 mod keys;
 pub mod library;
+mod liked_filter;
 pub mod login;
 mod lyrics;
 pub mod new_releases;
@@ -37,11 +38,14 @@ use crate::theme::{self, Icon};
 pub fn show(app: &mut App, ui: &mut egui::Ui) {
     let ctx = ui.ctx().clone();
     let ctx = &ctx;
+    let signed_in = app.is_connected() && app.user.is_some();
+    if signed_in {
+        liked_filter::handle(app, ctx);
+    }
     keys::handle(app, ctx);
     for path in winamp::dropped_skins(ctx) {
         app.actions.push(Action::InstallSkin(path));
     }
-    let signed_in = app.is_connected() && app.user.is_some();
     let connecting = matches!(app.auth, AuthStatus::Connecting | AuthStatus::Starting)
         || (app.is_connected() && app.user.is_none());
     if !signed_in {
@@ -304,6 +308,9 @@ fn central(app: &mut App, ui: &mut egui::Ui) {
             // page casts a shadow under the header instead.
             ui.spacing_mut().scroll.fade.strength = 0.0;
             topbar::show(app, ui);
+            if page == Page::LikedSongs {
+                liked_filter::indicator(ui, &palette);
+            }
             // One banner at a time: a song that will not play matters more
             // than a slow app, which waits its turn.
             if app.dialog.is_none() && page != Page::Settings {
